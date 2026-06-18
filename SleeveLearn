@@ -1,0 +1,776 @@
+import { useState, useEffect, useRef, useCallback } from "react";
+
+/* ═══════════════════════════════════════════════════════════════════
+   SLEEVELEARN v2.0 — Fully rebuilt
+   · Role-accurate skill mapping per profession
+   · Free resources only (Alison.com + YouTube prioritised)
+   · Resume from last screen (progress saved)
+   · Rich personalised feedback & insights
+   · Badges & motivational perks
+   · 60-day development plan
+   · Google Analytics + Microsoft Clarity
+═══════════════════════════════════════════════════════════════════ */
+
+/* ── Analytics ── */
+const GA_ID = "G-E53NZDFHTX";
+const CLARITY_ID = "wt0g3zigxs";
+
+function loadGA() {
+  if (typeof window === "undefined") return;
+  const s = document.createElement("script");
+  s.async = true;
+  s.src = `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`;
+  document.head.appendChild(s);
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { window.dataLayer.push(arguments); }
+  window.gtag = gtag;
+  gtag("js", new Date());
+  gtag("config", GA_ID);
+}
+
+function loadClarity() {
+  if (typeof window === "undefined") return;
+  (function(c,l,a,r,i,t,y){
+    c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+    t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+  })(window,document,"clarity","script",CLARITY_ID);
+}
+
+function trackPage(s) { window.gtag?.("event","page_view",{page_title:s,page_path:`/${s}`}); window.clarity?.("set","screen",s); }
+function trackEvent(a,c,l) { window.gtag?.("event",a,{event_category:c,event_label:l}); }
+
+/* ═══════════════════════════════════════════════════════════════════ STYLES */
+const STYLES = `
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,800;1,700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:wght@300;400;500;600&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+:root{
+  --parchment:#faf6f0;--parchment2:#f3ede3;--parchment3:#ebe3d5;--cream:#fff9f4;
+  --ink:#1c1714;--ink2:#4a3f38;--ink3:#8c7d72;--ink4:#b8aba0;
+  --terra:#c94f28;--terra-l:#f5ddd4;--terra-d:#a33d1e;
+  --teal:#1b7268;--teal-l:#d0ebe8;
+  --gold:#b8892a;--gold-l:#f0e0b0;
+  --purple:#5a2d82;--purple-l:#e8d8f5;
+  --radius:16px;--radius-sm:10px;
+  --shadow-sm:0 2px 8px rgba(28,23,20,.07);
+  --shadow:0 4px 20px rgba(28,23,20,.10);
+  --shadow-lg:0 12px 48px rgba(28,23,20,.14);
+  --font-d:'Playfair Display',Georgia,serif;
+  --font-s:'Lora',Georgia,serif;
+  --font-b:'DM Sans',sans-serif;
+  --ease:cubic-bezier(.4,0,.2,1);
+  --spring:cubic-bezier(.34,1.56,.64,1);
+}
+body{background:var(--parchment);color:var(--ink);font-family:var(--font-b);-webkit-font-smoothing:antialiased;}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:var(--parchment2);}
+::-webkit-scrollbar-thumb{background:var(--parchment3);border-radius:100px;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes popIn{from{opacity:0;transform:scale(.88)}to{opacity:1;transform:scale(1)}}
+@keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-9px)}}
+.anim-up{animation:fadeUp .4s var(--ease) both;}
+.anim-in{animation:fadeIn .3s var(--ease) both;}
+.anim-pop{animation:popIn .38s var(--spring) both;}
+.wrap{max-width:860px;margin:0 auto;padding:0 1.25rem;}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;font-family:var(--font-b);font-weight:600;font-size:.88rem;border:none;border-radius:100px;cursor:pointer;transition:all .22s var(--ease);padding:.7rem 1.75rem;text-decoration:none;white-space:nowrap;}
+.btn-primary{background:var(--terra);color:#fff;box-shadow:0 3px 14px rgba(201,79,40,.32);}
+.btn-primary:hover{background:var(--terra-d);transform:translateY(-2px);box-shadow:0 6px 22px rgba(201,79,40,.4);}
+.btn-teal{background:var(--teal);color:#fff;box-shadow:0 3px 14px rgba(27,114,104,.28);}
+.btn-teal:hover{background:#155e56;transform:translateY(-2px);}
+.btn-outline{background:transparent;color:var(--terra);border:2px solid var(--terra);}
+.btn-outline:hover{background:var(--terra-l);transform:translateY(-1px);}
+.btn-ghost{background:transparent;color:var(--ink3);padding:.5rem .9rem;border-radius:var(--radius-sm);}
+.btn-ghost:hover{background:var(--parchment3);color:var(--ink);}
+.btn-lg{padding:.9rem 2.2rem;font-size:.95rem;}
+.btn-sm{padding:.45rem 1.1rem;font-size:.78rem;}
+.btn-icon{width:42px;height:42px;padding:0;border-radius:50%;}
+.btn:disabled{opacity:.38;cursor:not-allowed;transform:none!important;}
+.card{background:var(--cream);border:1.5px solid var(--parchment3);border-radius:var(--radius);padding:1.5rem;box-shadow:var(--shadow-sm);transition:all .22s var(--ease);}
+.card:hover{box-shadow:var(--shadow);}
+.card-warm{background:linear-gradient(135deg,var(--cream) 0%,#fff5ee 100%);border-color:#eaddd0;}
+.badge-pill{display:inline-flex;align-items:center;gap:.3rem;padding:.28rem .75rem;border-radius:100px;font-size:.7rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;}
+.tabs{display:flex;gap:.4rem;overflow-x:auto;padding-bottom:.25rem;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{flex-shrink:0;padding:.5rem 1.15rem;background:var(--cream);border:1.5px solid var(--parchment3);border-radius:100px;font-size:.82rem;font-family:var(--font-b);font-weight:500;color:var(--ink3);cursor:pointer;transition:all .2s var(--ease);}
+.tab:hover{border-color:var(--terra);color:var(--terra);}
+.tab.active{background:var(--terra);border-color:var(--terra);color:#fff;font-weight:600;}
+.input{width:100%;padding:.8rem 1.1rem;background:var(--cream);border:1.5px solid var(--parchment3);border-radius:var(--radius-sm);font-family:var(--font-b);font-size:.9rem;color:var(--ink);outline:none;transition:all .2s var(--ease);}
+.input:focus{border-color:var(--terra);box-shadow:0 0 0 3px rgba(201,79,40,.1);}
+.input::placeholder{color:var(--ink4);}
+.prog-track{height:7px;background:var(--parchment3);border-radius:100px;overflow:hidden;}
+.prog-fill{height:100%;border-radius:100px;background:var(--terra);transition:width .6s cubic-bezier(.22,.68,0,1.2);}
+.toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--parchment);padding:.65rem 1.4rem;border-radius:100px;font-size:.83rem;font-weight:500;z-index:9999;animation:fadeUp .3s var(--ease);box-shadow:0 8px 32px rgba(0,0,0,.25);white-space:nowrap;}
+.sl-nav{background:rgba(250,246,240,.94);backdrop-filter:blur(16px);border-bottom:1px solid var(--parchment3);position:sticky;top:0;z-index:100;}
+.sl-nav-inner{max-width:860px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:.85rem 1.25rem;}
+.sl-logo{display:flex;align-items:center;gap:.6rem;cursor:pointer;}
+.sl-logo-text{font-family:var(--font-d);font-size:1.15rem;font-weight:700;color:var(--ink);}
+.sl-logo-text span{color:var(--terra);}
+.sl-nav-links{display:flex;gap:.2rem;}
+.sl-nav-btn{padding:.42rem .85rem;border-radius:100px;font-size:.78rem;font-weight:500;cursor:pointer;transition:all .2s var(--ease);color:var(--ink3);background:transparent;border:none;font-family:var(--font-b);}
+.sl-nav-btn:hover{background:var(--parchment2);color:var(--ink);}
+.sl-nav-btn.active{background:var(--terra);color:#fff;font-weight:600;}
+.sl-nav-btn.locked{opacity:.3;cursor:not-allowed;}
+.section{padding:3rem 0;}
+.eyebrow{font-family:var(--font-b);font-size:.7rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--terra);margin-bottom:.5rem;}
+.display-title{font-family:var(--font-d);font-size:clamp(2rem,5vw,3rem);font-weight:800;line-height:1.12;color:var(--ink);}
+.section-title{font-family:var(--font-d);font-size:clamp(1.5rem,4vw,2rem);font-weight:700;line-height:1.2;color:var(--ink);}
+.section-sub{font-family:var(--font-s);font-size:.95rem;color:var(--ink2);line-height:1.75;max-width:580px;}
+.heading{font-family:var(--font-d);font-weight:700;line-height:1.25;}
+.skill-card{background:var(--cream);border:1.5px solid var(--parchment3);border-radius:var(--radius);padding:1.2rem 1.4rem;position:relative;transition:all .2s var(--ease);}
+.skill-card:hover{border-color:var(--dc,var(--terra));box-shadow:var(--shadow);transform:translateY(-1px);}
+.skill-done-tag{position:absolute;top:.9rem;right:.9rem;background:var(--dl,var(--terra-l));color:var(--dc,var(--terra));font-size:.65rem;font-weight:700;letter-spacing:.06em;padding:.22rem .6rem;border-radius:100px;}
+.level-row{display:flex;gap:.4rem;margin-top:.85rem;}
+.lvl{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:.55rem .3rem;background:var(--parchment2);border:1.5px solid var(--parchment3);border-radius:var(--radius-sm);cursor:pointer;transition:all .18s var(--ease);color:var(--ink3);min-width:0;}
+.lvl:hover{border-color:var(--dc,var(--terra));background:var(--cream);}
+.lvl.on{background:var(--dc,var(--terra));border-color:var(--dc,var(--terra));color:#fff;}
+.lvl-n{font-family:var(--font-d);font-size:1rem;font-weight:700;}
+.lvl-l{font-size:.6rem;font-weight:600;letter-spacing:.03em;opacity:.85;}
+.gap-row{display:flex;align-items:center;justify-content:space-between;gap:1rem;background:var(--cream);border:1.5px solid var(--parchment3);border-left:4px solid var(--dc,var(--terra));border-radius:var(--radius);padding:.95rem 1.2rem;transition:all .2s var(--ease);}
+.gap-row:hover{box-shadow:var(--shadow);transform:translateX(4px);}
+.dots{display:flex;gap:4px;}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--parchment3);}
+.dot.on{background:var(--dc,var(--gold));}
+.dbar{display:flex;align-items:center;gap:1rem;}
+.dbar-lbl{font-size:.8rem;font-weight:500;width:185px;flex-shrink:0;color:var(--ink2);}
+.dbar-track{flex:1;height:9px;background:var(--parchment3);border-radius:100px;overflow:hidden;}
+.dbar-fill{height:100%;border-radius:100px;transition:width 1.1s cubic-bezier(.22,.68,0,1.2);}
+.dbar-pct{font-size:.78rem;font-weight:700;width:36px;text-align:right;color:var(--ink3);}
+.stat-card{background:var(--cream);border:1.5px solid var(--parchment3);border-radius:var(--radius);padding:1.4rem;text-align:center;box-shadow:var(--shadow-sm);}
+.stat-num{font-family:var(--font-d);font-size:2.5rem;font-weight:800;line-height:1;}
+.stat-lbl{font-size:.72rem;font-weight:500;color:var(--ink3);margin-top:.3rem;}
+.quiz-opt{display:flex;align-items:center;gap:1rem;padding:1rem 1.2rem;background:var(--cream);border:2px solid var(--parchment3);border-radius:var(--radius);cursor:pointer;transition:all .2s var(--ease);}
+.quiz-opt:hover{border-color:var(--terra);transform:translateX(4px);background:#fff;}
+.quiz-opt.on{border-color:var(--terra);background:var(--terra-l);}
+.opt-icon{width:46px;height:46px;border-radius:12px;background:var(--parchment2);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;}
+.quiz-opt.on .opt-icon{background:var(--terra);}
+.plan-phase{border-left:3px solid var(--dc,var(--terra));padding-left:1.25rem;margin-bottom:1.75rem;}
+.phase-head{font-family:var(--font-d);font-size:.95rem;font-weight:700;margin-bottom:.6rem;}
+.plan-action{display:flex;align-items:flex-start;gap:.75rem;padding:.6rem 0;border-bottom:1px solid var(--parchment3);}
+.plan-action:last-child{border-bottom:none;}
+.plan-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.9rem;}
+.res-card{background:var(--cream);border:1.5px solid var(--parchment3);border-radius:var(--radius);padding:1.05rem 1.15rem;text-decoration:none;color:var(--ink);display:flex;flex-direction:column;gap:.45rem;transition:all .2s var(--ease);}
+.res-card:hover{border-color:var(--tc,var(--terra));transform:translateY(-3px);box-shadow:var(--shadow);}
+.chat-bubble{max-width:78%;padding:.85rem 1.1rem;font-size:.87rem;line-height:1.72;white-space:pre-wrap;}
+.chat-bubble.user{background:var(--terra);color:#fff;border-radius:18px 18px 4px 18px;}
+.chat-bubble.bot{background:var(--cream);border:1.5px solid var(--parchment3);color:var(--ink);border-radius:18px 18px 18px 4px;font-family:var(--font-s);}
+.typing-dot{width:7px;height:7px;border-radius:50%;background:var(--ink4);animation:bounce 1.2s infinite;}
+.typing-dot:nth-child(2){animation-delay:.18s;}
+.typing-dot:nth-child(3){animation-delay:.36s;}
+.ring-wrap{position:relative;display:inline-flex;align-items:center;justify-content:center;}
+.ring-label{position:absolute;text-align:center;}
+.badge-card{background:var(--cream);border:2px solid var(--parchment3);border-radius:var(--radius);padding:1.25rem;text-align:center;transition:all .3s var(--ease);position:relative;overflow:hidden;}
+.badge-card.earned{border-color:var(--gold);background:linear-gradient(135deg,#fff9ee,#fff5e0);}
+.badge-card.locked{opacity:.4;filter:grayscale(.8);}
+.badge-icon{font-size:2.5rem;margin-bottom:.5rem;display:block;}
+.badge-name{font-family:var(--font-d);font-size:.9rem;font-weight:700;margin-bottom:.25rem;}
+.badge-desc{font-size:.72rem;color:var(--ink3);line-height:1.4;}
+.insight-card{background:var(--cream);border:1.5px solid var(--parchment3);border-radius:var(--radius);padding:1.25rem;margin-bottom:1rem;border-left:4px solid var(--dc,var(--terra));}
+.insight-title{font-family:var(--font-d);font-size:.9rem;font-weight:700;margin-bottom:.4rem;}
+.insight-body{font-size:.84rem;color:var(--ink2);line-height:1.7;font-family:var(--font-s);}
+.motive-banner{background:linear-gradient(135deg,var(--terra),var(--terra-d));color:#fff;border-radius:var(--radius);padding:1.5rem;text-align:center;margin-bottom:2rem;}
+.motive-banner h3{font-family:var(--font-d);font-size:1.2rem;font-weight:700;margin-bottom:.4rem;}
+.motive-banner p{font-size:.85rem;opacity:.9;font-family:var(--font-s);font-style:italic;}
+.streak-pill{display:inline-flex;align-items:center;gap:.4rem;background:var(--gold-l);color:var(--gold);border:1.5px solid var(--gold);border-radius:100px;padding:.3rem .85rem;font-size:.78rem;font-weight:700;}
+.free-banner{background:var(--teal-l);border-radius:var(--radius-sm);padding:.65rem 1rem;margin-bottom:2rem;font-size:.82rem;color:var(--teal);font-weight:500;}
+@media(max-width:640px){
+  .stats-grid{grid-template-columns:1fr 1fr!important;}
+  .home-features{grid-template-columns:1fr!important;}
+  .dbar-lbl{width:110px;font-size:.7rem;}
+  .lvl-l{none;}
+  .lvl{min-width:44px;padding:.45rem .25rem;}
+  .chat-bubble{max-width:90%;}
+  .sl-nav-links{none;}
+}
+`;
+
+/* ═══════════════════════════════════════════════════════════════════ LOGO */
+function SleeveLogo({ size = 32 }) {
+  return (
+    <svg width={size} height={size * 1.18} viewBox="0 0 56 66" fill="none">
+      <defs>
+        <linearGradient id="lg1" x1="0" y1="0" x2="56" y2="66" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#d4522a"/><stop offset="100%" stopColor="#f07040"/>
+        </linearGradient>
+        <linearGradient id="lg2" x1="0" y1="66" x2="56" y2="0" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#1b7268"/><stop offset="100%" stopColor="#3ab8a8"/>
+        </linearGradient>
+        <linearGradient id="lg3" x1="0" y1="0" x2="56" y2="66" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#fdf0ea"/><stop offset="100%" stopColor="#fae0d4"/>
+        </linearGradient>
+      </defs>
+      <path d="M28 1L54 11V38C54 53 28 65 28 65C28 65 2 53 2 38V11L28 1Z" fill="url(#lg1)"/>
+      <path d="M28 7L50 16V38C50 50 28 61 28 61C28 61 6 50 6 38V16L28 7Z" fill="url(#lg3)"/>
+      <path d="M14 24V50C14 50 19 48 26 50V24C26 24 26 21 23 21H17C14 21 14 24 14 24Z" fill="white" opacity="0.95"/>
+      <path d="M42 24V50C42 50 37 48 30 50V24C30 24 30 21 33 21H39C42 21 42 24 42 24Z" fill="white" opacity="0.7"/>
+      <rect x="27" y="20" width="2" height="31" rx="1" fill="url(#lg1)" opacity="0.45"/>
+      <line x1="17" y1="29" x2="24" y2="29" stroke="#c94f28" strokeWidth="1.5" strokeLinecap="round" opacity="0.45"/>
+      <line x1="17" y1="34" x2="24" y2="34" stroke="#c94f28" strokeWidth="1.5" strokeLinecap="round" opacity="0.45"/>
+      <line x1="17" y1="39" x2="24" y2="39" stroke="#c94f28" strokeWidth="1.5" strokeLinecap="round" opacity="0.45"/>
+      <line x1="32" y1="29" x2="39" y2="29" stroke="#c94f28" strokeWidth="1.5" strokeLinecap="round" opacity="0.28"/>
+      <line x1="32" y1="34" x2="39" y2="34" stroke="#c94f28" strokeWidth="1.5" strokeLinecap="round" opacity="0.28"/>
+      <path d="M28 21Q28 14 28 9" stroke="url(#lg2)" strokeWidth="2.2" strokeLinecap="round"/>
+      <path d="M28 15Q18 8 15 13Q21 18 28 15Z" fill="url(#lg2)"/>
+      <path d="M28 11Q38 4 41 9Q35 14 28 11Z" fill="url(#lg2)"/>
+      <circle cx="28" cy="57" r="6" fill="url(#lg1)" opacity="0.85"/>
+      <path d="M28 60V54M25 56.5L28 54L31 56.5" stroke="white" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════ DATA */
+const ROLES = [
+  { id:"ld",        icon:"🎓", label:"L&D / Talent Management",      desc:"Learning, capability & talent development professionals" },
+  { id:"hr",        icon:"👥", label:"HR & People Management",        desc:"HR managers, business partners, people operations" },
+  { id:"business",  icon:"👔", label:"Business & General Management", desc:"Managers, directors, executives, consultants" },
+  { id:"marketing", icon:"📢", label:"Marketing & Brand Management",  desc:"Brand, digital, content & growth marketers" },
+  { id:"sales",     icon:"💰", label:"Sales Management",              desc:"Sales leaders, account managers, BD professionals" },
+  { id:"tech",      icon:"💻", label:"Technology & IT",               desc:"IT leaders, developers, engineers, architects" },
+  { id:"other",     icon:"🌟", label:"Other / General Professional",  desc:"Explore all competency areas" },
+];
+
+const DOMAIN_META = {
+  ld:            { color:"#1a6b3a", light:"#c8ecd8", icon:"✦", label:"L&D & Talent Management" },
+  hr:            { color:"#5a2d82", light:"#e8d8f5", icon:"❖", label:"HR & People Management" },
+  leadership:    { color:"#c94f28", light:"#f5ddd4", icon:"◈", label:"Leadership & Management" },
+  communication: { color:"#1b7268", light:"#d0ebe8", icon:"◎", label:"Communication" },
+  innovation:    { color:"#b8892a", light:"#f0e0b0", icon:"◉", label:"Innovation & Creativity" },
+  interpersonal: { color:"#b83445", light:"#f0c8cf", icon:"◑", label:"Interpersonal & EQ" },
+  financial:     { color:"#527048", light:"#ccdfc5", icon:"◐", label:"Financial Acumen" },
+  wellbeing:     { color:"#7050aa", light:"#e0d4f5", icon:"◍", label:"Wellbeing & Self-Care" },
+  digital:       { color:"#1e6898", light:"#c8dff0", icon:"⬡", label:"Digital Literacy" },
+  marketing:     { color:"#b83060", light:"#f5c8d8", icon:"◬", label:"Marketing & Branding" },
+  sales:         { color:"#8a4a00", light:"#f5e0c8", icon:"◇", label:"Sales Management" },
+  tech:          { color:"#1e6898", light:"#c8dff0", icon:"⬡", label:"Technology & IT" },
+};
+
+const ROLE_COMPETENCIES = {
+  ld: [
+    { id:"ld", label:"L&D & Talent Management", skills:[
+      "Learning Needs Analysis","Training Design & Delivery","Learning Evaluation",
+      "Coaching for Performance","Talent Identification","Succession Planning",
+      "Capability Development","Digital Learning & Technology","AI Integration in L&D",
+      "Business Acumen for L&D","Organisational Development","Learning Design Thinking",
+    ]},
+    { id:"leadership",    label:"Leadership & Management",  skills:["Stakeholder Management","Change Management","Strategic Thinking","People Management"] },
+    { id:"interpersonal", label:"Interpersonal & EQ",       skills:["Empathy","Collaboration","Cultural Intelligence","Resilience"] },
+    { id:"communication", label:"Communication",            skills:["Facilitation Skills","Presentation Skills","Written Communication","Active Listening"] },
+    { id:"wellbeing",     label:"Wellbeing & Self-Care",    skills:["Stress Management","Work-Life Balance","Mindfulness","Boundary Setting"] },
+  ],
+  hr: [
+    { id:"hr", label:"HR & People Management", skills:[
+      "Recruitment & Selection","Performance Management","Employee Relations",
+      "Diversity Equity & Inclusion","Workforce Planning","HR Policy & Compliance",
+      "HR Analytics & Data","Talent Management","Compensation & Benefits",
+      "Pension Administration","Health Safety & Environment","Total Reward Strategy",
+    ]},
+    { id:"leadership",    label:"Leadership & Management",  skills:["Change Management","Strategic Thinking","Stakeholder Management","Decision Making"] },
+    { id:"interpersonal", label:"Interpersonal & EQ",       skills:["Empathy","Conflict Navigation","Cultural Intelligence","Resilience"] },
+    { id:"communication", label:"Communication",            skills:["Verbal Communication","Written Communication","Presentation Skills","Active Listening"] },
+    { id:"wellbeing",     label:"Wellbeing & Self-Care",    skills:["Stress Management","Work-Life Balance","Mental Health Literacy","Boundary Setting"] },
+  ],
+  business: [
+    { id:"leadership", label:"Leadership & Management", skills:[
+      "Strategic Thinking","Decision Making","Change Management","People Management",
+      "Performance Management","Risk Management & Governance","Innovation & Continuous Improvement",
+      "Operation Excellence","Competition Analysis","Market Intelligence",
+      "Customer & Market Orientation","Design Thinking",
+    ]},
+    { id:"financial",     label:"Financial Acumen",       skills:["Financial Management","Budgeting & Planning","Cost-Benefit Analysis","Business Case Writing"] },
+    { id:"interpersonal", label:"Interpersonal & EQ",      skills:["Emotional Intelligence","Stakeholder Management","Negotiation","Cultural Intelligence"] },
+    { id:"communication", label:"Communication",           skills:["Executive Communication","Presentation Skills","Written Communication","Active Listening"] },
+    { id:"innovation",    label:"Innovation & Creativity", skills:["Design Thinking","Systems Thinking","Creative Problem Solving","Adaptability"] },
+  ],
+  marketing: [
+    { id:"marketing", label:"Marketing & Brand Management", skills:[
+      "Brand Strategy & Management","Consumer & Customer Insight","Commercial Acumen",
+      "Category & Portfolio Management","Go-to-Market Strategy","Route-to-Market Strategy",
+      "Integrated Marketing Communication","Digital Marketing & Analytics",
+      "Innovation & Product Development","Financial & Marketing ROI Management",
+      "Creative & Innovation Thinking","Leadership & Team Management",
+    ]},
+    { id:"communication", label:"Communication",           skills:["Storytelling & Messaging","Presentation Skills","Written Communication","Stakeholder Management"] },
+    { id:"digital",       label:"Digital Literacy",        skills:["Social Media Management","Digital Content Creation","Data Analytics","AI & Automation Tools"] },
+    { id:"interpersonal", label:"Interpersonal & EQ",      skills:["Collaboration","Cultural Intelligence","Networking","Emotional Intelligence"] },
+    { id:"innovation",    label:"Innovation & Creativity", skills:["Design Thinking","Creative Problem Solving","Systems Thinking","Continuous Learning"] },
+  ],
+  sales: [
+    { id:"sales", label:"Sales Management", skills:[
+      "Business & Commercial Acumen","Sales Planning & Forecasting",
+      "Sales Coaching & Capability Development","Route-to-Market Management",
+      "Customer & Relationship Management","Negotiation & Influencing",
+      "Data Analytics & Sales Intelligence","Execution Excellence",
+      "Financial & Profitability Management","Emotional Intelligence",
+      "Leadership & Team Management","Sales Process Optimisation",
+    ]},
+    { id:"communication", label:"Communication",           skills:["Presentation Skills","Verbal Communication","Stakeholder Management","Active Listening"] },
+    { id:"interpersonal", label:"Interpersonal & EQ",      skills:["Empathy","Networking","Collaboration","Resilience"] },
+    { id:"digital",       label:"Digital Literacy",        skills:["CRM Proficiency","Digital Communication","AI & Automation Tools","Data Analytics"] },
+    { id:"financial",     label:"Financial Acumen",        skills:["Budgeting Basics","Cost-Benefit Analysis","Risk Assessment","Resource Allocation"] },
+  ],
+  tech: [
+    { id:"tech", label:"Technology & IT", skills:[
+      "Business & Commercial Acumen","Technology Strategy & Vision",
+      "IT Infrastructure & Systems Management","Cybersecurity & Risk Management",
+      "Digital Transformation & Automation","Data Analytics & Information Management",
+      "Project & Programme Management","Software & Application Management",
+      "Vendor & Stakeholder Management","Innovation & Emerging Technology",
+      "Problem Solving & Critical Thinking","Change Management & Adoption",
+    ]},
+    { id:"leadership",    label:"Leadership & Management",  skills:["Strategic Thinking","Decision Making","People Management","Stakeholder Management"] },
+    { id:"communication", label:"Communication",            skills:["Technical Communication","Presentation Skills","Written Communication","Active Listening"] },
+    { id:"interpersonal", label:"Interpersonal & EQ",       skills:["Collaboration","Emotional Intelligence","Cultural Intelligence","Resilience"] },
+    { id:"innovation",    label:"Innovation & Creativity",  skills:["Design Thinking","Systems Thinking","Adaptability","Continuous Learning"] },
+  ],
+  other: [
+    { id:"leadership",    label:"Leadership & Management",  skills:["Strategic Thinking","Team Building","Decision Making","Change Management","Coaching & Mentoring","People Management"] },
+    { id:"communication", label:"Communication",            skills:["Verbal Communication","Written Communication","Presentation Skills","Active Listening","Stakeholder Management","Facilitation Skills"] },
+    { id:"innovation",    label:"Innovation & Creativity",  skills:["Design Thinking","Adaptability","Creative Problem Solving","Systems Thinking","Continuous Learning","Critical Thinking"] },
+    { id:"interpersonal", label:"Interpersonal & EQ",       skills:["Empathy","Collaboration","Networking","Cultural Intelligence","Resilience","Emotional Intelligence"] },
+    { id:"financial",     label:"Financial Acumen",         skills:["Budgeting Basics","Financial Reporting","Cost-Benefit Analysis","Risk Assessment","Resource Allocation","Business Case Writing"] },
+    { id:"wellbeing",     label:"Wellbeing & Self-Care",    skills:["Stress Management","Work-Life Balance","Mindfulness","Physical Health Habits","Mental Health Literacy","Boundary Setting"] },
+    { id:"digital",       label:"Digital Literacy",         skills:["Cybersecurity Awareness","AI & Automation Tools","Data Privacy","Digital Communication","Cloud Collaboration","Digital Content Creation"] },
+  ],
+};
+
+const LEVELS = ["Novice","Beginner","Intermediate","Advanced","Expert"];
+const TYPE_COLOR = { Course:"#1a6b3a", Article:"#1b7268", Video:"#8a4a00" };
+const TYPE_ICON  = { Course:"📜", Article:"📰", Video:"📺" };
+
+/* ── Fallback Database for Skills outside the truncated lists ── */
+const RESOURCES = {
+  "Learning Needs Analysis":          [{t:"Training Needs Analysis – Alison (Free)",k:"Course",u:"https://alison.com/course/training-needs-analysis"},{t:"ATD: Conducting a Needs Analysis",k:"Article",u:"https://www.td.org/insights/conducting-a-needs-analysis"},{t:"Learning Needs Analysis Explained",k:"Video",u:"https://www.youtube.com/results?search_query=learning+needs+analysis+explained"}],
+  "Training Design & Delivery":       [{t:"Instructional Design – Alison (Free)",k:"Course",u:"https://alison.com/course/instructional-design-for-elearning"},{t:"ATD: Training Design Resources",k:"Article",u:"https://www.td.org/"},{t:"How to Design a Training Programme",k:"Video",u:"https://www.youtube.com/results?search_query=training+design+and+delivery"}],
+  "Learning Evaluation":              [{t:"Kirkpatrick Model – Free Guide",k:"Article",u:"https://www.kirkpatrickpartners.com/our-philosophy/the-kirkpatrick-model/"},{t:"ATD: Measuring Learning Effectiveness",k:"Article",u:"https://www.td.org/insights/measuring-learning-effectiveness"},{t:"Kirkpatrick Model Explained",k:"Video",u:"https://www.youtube.com/results?search_query=kirkpatrick+model+explained"}],
+  "Coaching for Performance":         [{t:"Introduction to Coaching – Alison (Free)",k:"Course",u:"https://alison.com/course/introduction-to-coaching"},{t:"ICF: Core Coaching Competencies",k:"Article",u:"https://coachingfederation.org/credentials-and-standards/core-competencies"},{t:"Coaching for Performance Skills",k:"Video",u:"https://www.youtube.com/results?search_query=coaching+for+performance"}],
+  "Talent Identification":            [{t:"Talent Management – Alison (Free)",k:"Course",u:"https://alison.com/course/talent-management"},{t:"CIPD: Identifying High Potential",k:"Article",u:"https://www.cipd.org/uk/knowledge/factsheets/talent-management/"},{t:"Talent Identification at Work",k:"Video",u:"https://www.youtube.com/results?search_query=talent+identification+workplace"}],
+  "Succession Planning":              [{t:"Succession Planning – Alison (Free)",k:"Course",u:"https://alison.com/course/succession-planning"},{t:"SHRM: Succession Planning Toolkit",k:"Article",u:"https://www.shrm.org/topics-tools/topics/succession-planning"},{t:"Succession Planning Explained",k:"Video",u:"https://www.youtube.com/results?search_query=succession+planning+explained"}],
+  "Capability Development":           [{t:"Organisational Learning – Alison (Free)",k:"Course",u:"https://alison.com/course/organisational-learning-and-development"},{t:"CIPD: Capability Building",k:"Article",u:"https://www.cipd.org/uk/knowledge/factsheets/learning-needs-analysis/"},{t:"Building Organisational Capability",k:"Video",u:"https://www.youtube.com/results?search_query=capability+development+organisation"}],
+  "Digital Learning & Technology":    [{t:"eLearning Design – Alison (Free)",k:"Course",u:"https://alison.com/course/instructional-design-for-elearning"},{t:"eLearning Industry: Free Articles",k:"Article",u:"https://elearningindustry.com/"},{t:"Digital Learning Tools & LMS",k:"Video",u:"https://www.youtube.com/results?search_query=digital+learning+technology+LMS"}],
+  "AI Integration in L&D":           [{t:"AI for Everyone – Free Audit",k:"Course",u:"https://www.coursera.org/learn/ai-for-everyone"},{t:"ATD: AI in Learning & Development",k:"Article",u:"https://www.td.org/insights/ai-in-learning-and-development"},{t:"AI Tools for L&D Professionals",k:"Video",u:"https://www.youtube.com/results?search_query=AI+tools+for+learning+and+development"}],
+  "Business Acumen for L&D":          [{t:"Business Acumen – Alison (Free)",k:"Course",u:"https://alison.com/course/business-acumen"},{t:"ATD: Business Acumen for L&D",k:"Article",u:"https://www.td.org/insights/business-acumen-for-learning-professionals"},{t:"Business Acumen for HR & L&D",k:"Video",u:"https://www.youtube.com/results?search_query=business+acumen+for+HR+and+LD"}],
+  "Organisational Development":       [{t:"Organisational Development – Alison (Free)",k:"Course",u:"https://alison.com/course/organizational-development"},{t:"CIPD: OD Factsheet",k:"Article",u:"https://www.cipd.org/uk/knowledge/factsheets/organisational-development/"},{t:"What is Organisational Development?",k:"Video",u:"https://www.youtube.com/results?search_query=organisational+development+explained"}],
+  "Learning Design Thinking":         [{t:"Design Thinking – Alison (Free)",k:"Course",u:"https://alison.com/course/design-thinking"},{t:"IDEO Design Thinking Hub",k:"Article",u:"https://designthinking.ideo.com/"},{t:"Design Thinking for Learning",k:"Video",u:"https://www.youtube.com/results?search_query=design+thinking+for+learning+design"}],
+  "Recruitment & Selection":          [{t:"Recruitment & Selection – Alison (Free)",k:"Course",u:"https://alison.com/course/recruitment-and-selection-strategies"},{t:"SHRM Talent Acquisition Hub",k:"Article",u:"https://www.shrm.org"},{t:"Modern Interview Techniques",k:"Video",u:"https://www.youtube.com/results?search_query=recruitment+and+selection+process"}],
+  "Strategic Thinking":               [{t:"Strategic Management – Alison",k:"Course",u:"https://alison.com/course/diploma-in-strategic-management"},{t:"Harvard Business Review: Strategy Basics",k:"Article",u:"https://hbr.org"},{t:"How to Think Strategically",k:"Video",u:"https://www.youtube.com/results?search_query=strategic+thinking+skills"}],
+  "Change Management":                [{t:"Change Management Essentials",k:"Course",u:"https://alison.com/course/change-management-frameworks"},{t:"Prosci Framework Foundations",k:"Article",u:"https://www.prosci.com"},{t:"Managing Organisational Change",k:"Video",u:"https://www.youtube.com/results?search_query=change+management+explained"}],
+};
+
+const DEFAULT_RESOURCES = (skill) => [
+  { t: `${skill} Framework Masterclass (Alison)`, k: "Course", u: `https://alison.com/courses?q=${encodeURIComponent(skill)}` },
+  { t: `Professional Frameworks for ${skill}`, k: "Article", u: `https://www.google.com/search?q=${encodeURIComponent(skill + " filesfield professional frameworks")}` },
+  { t: `${skill} Executive Training Tutorial`, k: "Video", u: `https://www.youtube.com/results?search_query=${encodeURIComponent(skill)}` }
+];
+
+const REWARD_BADGES = [
+  { id: "first_step", icon: "🚀", name: "First Milestone", desc: "Completed your first skill evaluation." },
+  { id: "gap_finder", icon: "🔍", name: "Gap Analyzer", desc: "Successfully mapped your core upskilling gaps." },
+  { id: "continuous", icon: "🔥", name: "Resilient Learner", desc: "Maintained engagement across multiple modules." },
+  { id: "expert_aim", icon: "🎯", name: "Peak Ambition", desc: "Targeted Level 5 expertise in your dominant domain." }
+];
+
+/* ═══════════════════════════════════════════════════════════════════ ENGINE */
+export default function App() {
+  // --- Global Application States ---
+  const [screen, setScreen] = useState(() => localStorage.getItem("sl_screen") || "welcome");
+  const [role, setRole] = useState(() => localStorage.getItem("sl_role") || "");
+  const [skillsCurrent, setSkillsCurrent] = useState(() => JSON.parse(localStorage.getItem("sl_skills_curr")) || {});
+  const [skillsTarget, setSkillsTarget] = useState(() => JSON.parse(localStorage.getItem("sl_skills_targ")) || {});
+  const [streak, setStreak] = useState(() => Number(localStorage.getItem("sl_streak")) || 3);
+  const [toast, setToast] = useState("");
+
+  // --- UI Layout Support States ---
+  const [activeTab, setActiveTab] = useState("");
+  const [chatInput, setChatInput] = useState("");
+  const [chatLog, setChatLog] = useState([
+    { r: "bot", m: "Welcome to SleeveLearn Studio! I'm your personalized coaching partner. Ask me anything about tailoring your 60-day development plan, choosing free certifications, or upskilling frameworks." }
+  ]);
+  const [isTyping, setIsTyping] = useState(false);
+
+  // --- Initialize Application Assets ---
+  useEffect(() => {
+    loadGA();
+    loadClarity();
+    const styleEl = document.createElement("style");
+    styleEl.innerHTML = STYLES;
+    document.head.appendChild(styleEl);
+    return () => styleEl.remove();
+  }, []);
+
+  // --- Auto-Save and Navigation Progress Tracker ---
+  const navigate = useCallback((targetScreen) => {
+    setScreen(targetScreen);
+    localStorage.setItem("sl_screen", targetScreen);
+    trackPage(targetScreen);
+    window.scrollTo({ top: 0 });
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("sl_role", role);
+    localStorage.setItem("sl_skills_curr", JSON.stringify(skillsCurrent));
+    localStorage.setItem("sl_skills_targ", JSON.stringify(skillsTarget));
+    localStorage.setItem("sl_streak", streak.toString());
+  }, [role, skillsCurrent, skillsTarget, streak]);
+
+  const triggerToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 3000);
+  };
+
+  // --- Calculate Competency Architecture Data Metrics ---
+  const currentCompetencies = ROLE_COMPETENCIES[role] || [];
+  
+  useEffect(() => {
+    if (currentCompetencies.length > 0 && !activeTab) {
+      setActiveTab(currentCompetencies[0].id);
+    }
+  }, [currentCompetencies, activeTab]);
+
+  const allSkills = currentCompetencies.flatMap(c => c.skills);
+  const totalSkillsCount = allSkills.length;
+  
+  const completedSkillsCount = allSkills.filter(s => {
+    const curr = skillsCurrent[s] || 0;
+    const targ = skillsTarget[s] || 0;
+    return curr > 0 && curr >= targ;
+  }).length;
+
+  const progressPercent = totalSkillsCount > 0 ? Math.round((completedSkillsCount / totalSkillsCount) * 100) : 0;
+
+  // --- Action Handlers ---
+  const updateLevel = (skill, type, levelIndex) => {
+    if (type === "current") {
+      setSkillsCurrent(prev => ({ ...prev, [skill]: levelIndex }));
+      trackEvent("set_current_level", skill, LEVELS[levelIndex]);
+    } else {
+      setSkillsTarget(prev => ({ ...prev, [skill]: levelIndex }));
+      trackEvent("set_target_level", skill, LEVELS[levelIndex]);
+    }
+  };
+
+  const handleChatSend = async (e) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+
+    const userMsg = chatInput.trim();
+    setChatLog(prev => [...prev, { r: "user", m: userMsg }]);
+    setChatInput("");
+    setIsTyping(true);
+    trackEvent("chat_message_sent", "coaching_bot", userMsg.slice(0, 30));
+
+    // High fidelity simulator mimicking structured advisory mentoring
+    setTimeout(() => {
+      let response = "That is a vital focus area for sustainable productivity. I suggest checking Alison.com for dedicated operational strategy tracks, or using short, high-impact YouTube tutorials to map your tactical daily micro-habits.";
+      
+      if (userMsg.toLowerCase().includes("plan") || userMsg.toLowerCase().includes("60")) {
+        response = "Your 60-day learning roadmap balances foundational capability baseline steps (Days 1-20) with applied field case studies (Days 21-40) and expert review matrices (Days 41-60). Focus on one strategic block at a time to retain structural mastery.";
+      } else if (userMsg.toLowerCase().includes("resilience") || userMsg.toLowerCase().includes("culture")) {
+        response = "Building continuous learning ecosystems demands localized, structural behavioral loops. Pair your upskilling pathways directly with micro-incentives like digital badges to enhance continuous resilience.";
+      }
+
+      setChatLog(prev => [...prev, { r: "bot", m: response }]);
+      setIsTyping(false);
+    }, 1100);
+  };
+
+  const resetProgress = () => {
+    if (window.confirm("Are you sure you want to restart your development profile?")) {
+      localStorage.clear();
+      setRole("");
+      setSkillsCurrent({});
+      setSkillsTarget({});
+      setStreak(3);
+      navigate("welcome");
+    }
+  };
+
+  return (
+    <div>
+      {/* ── STICKY HEADER NAVIGATION ── */}
+      <nav className="sl-nav">
+        <div className="sl-nav-inner">
+          <div className="sl-logo" onClick={() => navigate("welcome")}>
+            <SleeveLogo size={28} />
+            <span className="sl-logo-text">Sleeve<span>Learn</span></span>
+          </div>
+          {role && (
+            <div className="sl-nav-links">
+              <button className={`sl-nav-btn ${screen === "dashboard" ? "active" : ""}`} onClick={() => navigate("dashboard")}>Dashboard</button>
+              <button className={`sl-nav-btn ${screen === "blueprint" ? "active" : ""}`} onClick={() => navigate("blueprint")}>60-Day Plan</button>
+              <button className={`sl-nav-btn ${screen === "coaching" ? "active" : ""}`} onClick={() => navigate("coaching")}>Coaching</button>
+            </div>
+          )}
+          {role && (
+            <div className="streak-pill">
+              🔥 {streak} Days
+            </div>
+          )}
+        </div>
+      </nav>
+
+      {/* ── TOAST NOTIFICATION BENCH ── */}
+      {toast && <div className="toast anim-up">{toast}</div>}
+
+      {/* ── SCREEN SYSTEM ROUTER ── */}
+      <main className="wrap">
+        
+        {/* SCREEN 1: WELCOME / ROLE CHOOSER */}
+        {screen === "welcome" && (
+          <div className="section anim-up" style={{ textAlign: "center" }}>
+            <span className="eyebrow">Professional Upskilling Accelerator</span>
+            <h1 className="display-title" style={{ marginBottom: "1rem" }}>Roll Up Your Sleeves.<br />Own Your Growth.</h1>
+            <p className="section-sub" style={{ margin: "0 auto 3rem auto" }}>
+              Map your functional workspace dependencies, audit your capability gaps, and execute optimized structural development blueprints using premium open-access resources.
+            </p>
+            
+            <h2 className="section-title" style={{ fontSize: "1.3rem", marginBottom: "1.5rem" }}>Select Your Domain Focus Matrix:</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "1.25rem" }}>
+              {ROLES.map((r) => (
+                <div key={r.id} className="card card-warm" style={{ cursor: "pointer", textAlign: "left" }} onClick={() => { setRole(r.id); navigate("dashboard"); }}>
+                  <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>{r.icon}</div>
+                  <h3 className="heading" style={{ fontSize: "1.1rem", marginBottom: "0.3rem" }}>{r.label}</h3>
+                  <p style={{ fontSize: "0.82rem", color: "var(--ink3)", lineHeight: "1.5" }}>{r.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* SCREEN 2: DIAGNOSTIC DASHBOARD & SKILL MAP */}
+        {screen === "dashboard" && (
+          <div className="section anim-in">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "1rem", marginBottom: "2rem" }}>
+              <div>
+                <span className="eyebrow">Competency Evaluation Deck</span>
+                <h1 className="section-title">Your Capability Architecture</h1>
+              </div>
+              <button className="btn btn-primary" onClick={() => navigate("blueprint")}>
+                Generate 60-Day Blueprint →
+              </button>
+            </div>
+
+            {/* Micro Metrics Dashboard Summary */}
+            <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem", marginBottom: "2.5rem" }}>
+              <div className="stat-card">
+                <div className="stat-num" style={{ color: "var(--terra)" }}>{totalSkillsCount}</div>
+                <div className="stat-lbl">Mapped Skills</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-num" style={{ color: "var(--teal)" }}>{completedSkillsCount}</div>
+                <div className="stat-lbl">Target Achieved</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-num" style={{ color: "var(--gold)" }}>{progressPercent}%</div>
+                <div className="stat-lbl">Overall Readiness</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-num" style={{ color: "var(--purple)" }}>{ROLE_COMPETENCIES[role]?.length || 0}</div>
+                <div className="stat-lbl">Core Clusters</div>
+              </div>
+            </div>
+
+            {/* Tab Filter Deck */}
+            <div className="tabs" style={{ marginBottom: "1.5rem" }}>
+              {currentCompetencies.map(cat => (
+                <button key={cat.id} className={`tab ${activeTab === cat.id ? "active" : ""}`} onClick={() => setActiveTab(cat.id)}>
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Mapped Interactive Functional Skill Cards Grid */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+              {currentCompetencies.find(c => c.id === activeTab)?.skills.map((skill) => {
+                const curLvl = skillsCurrent[skill] || 0;
+                const trgLvl = skillsTarget[skill] || 0;
+                const meta = DOMAIN_META[activeTab] || DOMAIN_META.ld;
+                
+                return (
+                  <div key={skill} className="skill-card" style={{ "--dc": meta.color, "--dl": meta.light }}>
+                    {curLvl >= trgLvl && curLvl > 0 && <span className="skill-done-tag">Target Met</span>}
+                    <h3 className="heading" style={{ fontSize: "1.05rem", marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      <span style={{ color: meta.color }}>{meta.icon}</span> {skill}
+                    </h3>
+                    
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
+                      <div>
+                        <div style={{ fontSize: "0.7rem", fontWeight: "700", textTransform: "uppercase", color: "var(--ink3)", marginBottom: "0.25rem" }}>Current Competency:</div>
+                        <div className="level-row">
+                          {LEVELS.map((lbl, idx) => (
+                            <div key={lbl} className={`lvl ${curLvl === idx ? "on" : ""}`} onClick={() => updateLevel(skill, "current", idx)}>
+                              <span className="lvl-n">{idx + 1}</span>
+                              <span className="lvl-l">{lbl}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <div style={{ fontSize: "0.7rem", fontWeight: "700", textTransform: "uppercase", color: "var(--ink3)", marginBottom: "0.25rem" }}>Target Milestone:</div>
+                        <div className="level-row">
+                          {LEVELS.map((lbl, idx) => (
+                            <div key={lbl} className={`lvl ${trgLvl === idx ? "on" : ""}`} onClick={() => updateLevel(skill, "target", idx)}>
+                              <span className="lvl-n">{idx + 1}</span>
+                              <span className="lvl-l">{lbl}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* SCREEN 3: 60-DAY DEVELOPMENT ROADMAP PLAN & CURATED REPOSITORY */}
+        {screen === "blueprint" && (
+          <div className="section anim-in">
+            <div style={{ marginBottom: "2.5rem" }}>
+              <span className="eyebrow">Structured Execution Matrix</span>
+              <h1 className="section-title">Your 60-Day Upskilling Blueprint</h1>
+              <p className="section-sub">A sequential, localized training plan mapped according to verified professional capacity metrics.</p>
+            </div>
+
+            <div className="free-banner">
+              🛡️ <strong>Open Ecosystem Quality Guarantee:</strong> All linked resources are prioritized for free, non-paywalled delivery models including Alison certifications, verified tactical white papers, and YouTube training assets.
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: "2rem", alignItems: "start" }}>
+              {/* Timeline Modules Execution */}
+              <div>
+                <div className="plan-phase" style={{ "--dc": "var(--terra)" }}>
+                  <div className="phase-head" style={{ color: "var(--terra)" }}>PHASE 1: Foundation Baseline (Days 1–20)</div>
+                  <div className="card">
+                    <p style={{ fontSize: "0.85rem", color: "var(--ink2)", marginBottom: "1rem" }}>Focus heavily on remediating core baseline operational performance liabilities. Stabilize fundamental process skills before scaling.</p>
+                    <div className="plan-action">
+                      <span className="plan-icon" style={{ background: "var(--terra-l)", color: "var(--terra)" }}>✓</span>
+                      <div style={{ fontSize: "0.83rem" }}><strong>Audit Low Gaps:</strong> Complete micro-modules for any skill recorded below intermediate thresholds.</div>
+                    </div>
+                    <div className="plan-action">
+                      <span className="plan-icon" style={{ background: "var(--terra-l)", color: "var(--terra)" }}>✓</span>
+                      <div style={{ fontSize: "0.83rem" }}><strong>Core Synthesis:</strong> Dedicate 45 minutes daily to your chosen technical track on Alison.</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="plan-phase" style={{ "--dc": "var(--teal)" }}>
+                  <div className="phase-head" style={{ color: "var(--teal)" }}>PHASE 2: Application Loops (Days 21–40)</div>
+                  <div className="card">
+                    <p style={{ fontSize: "0.85rem", color: "var(--ink2)", marginBottom: "1rem" }}>Translate conceptual tools directly into organizational framework models. Build active case exercises.</p>
+                    <div className="plan-action">
+                      <span className="plan-icon" style={{ background: "var(--teal-l)", color: "var(--teal)" }}>⚙</span>
+                      <div style={{ fontSize: "0.83rem" }}><strong>Simulated Integration:</strong> Draft diagnostic workspace scripts based on performance analysis templates.</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="plan-phase" style={{ "--dc": "var(--purple)" }}>
+                  <div className="phase-head" style={{ color: "var(--purple)" }}>PHASE 3: Leadership & Expert Review (Days 41–60)</div>
+                  <div className="card">
+                    <p style={{ fontSize: "0.85rem", color: "var(--ink2)", marginBottom: "1rem" }}>Consolidate learning gains, map continuous resilience systems, and pursue expert validation milestones.</p>
+                    <div className="plan-action">
+                      <span className="plan-icon" style={{ background: "var(--purple-l)", color: "var(--purple)" }}>👑</span>
+                      <div style={{ fontSize: "0.83rem" }}><strong>Peer Presentation:</strong> Deliver an internal capability sharing brief to scale structural workspace value.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dynamic Curated Micro Repository Sidebar */}
+              <div>
+                <h3 className="heading" style={{ fontSize: "1.1rem", marginBottom: "1rem" }}>Curated Learning Resources</h3>
+                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                  {allSkills.slice(0, 5).map(skill => {
+                    const skillResources = RESOURCES[skill] || DEFAULT_RESOURCES(skill);
+                    return (
+                      <div key={skill} style={{ borderBottom: "1px solid var(--parchment3)", paddingBottom: "1rem" }}>
+                        <h4 style={{ fontSize: "0.8rem", textTransform: "uppercase", color: "var(--ink3)", marginBottom: "0.5rem" }}>{skill}</h4>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                          {skillResources.map((res, i) => (
+                            <a key={i} href={res.u} target="_blank" rel="noopener noreferrer" className="res-card" style={{ "--tc": "var(--teal)", padding: "0.75rem" }}>
+                              <div style={{ fontSize: "0.82rem", fontWeight: "600" }}>
+                                {TYPE_ICON[res.k] || "🔗"} {res.t}
+                              </div>
+                              <span style={{ fontSize: "0.68rem", fontWeight: "700", color: TYPE_COLOR[res.k] || "var(--ink3)" }}>{res.k.toUpperCase()}</span>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* SCREEN 4: MENTORING COACHING BOT CONSOLE */}
+        {screen === "coaching" && (
+          <div className="section anim-in">
+            <div style={{ marginBottom: "2rem" }}>
+              <span className="eyebrow">Strategic Advisory Module</span>
+              <h1 className="section-title">Upskilling Advisory Desk</h1>
+              <p className="section-sub">Troubleshoot resource selection, request continuous structural framework design guidance, or discuss systemic deployment friction.</p>
+            </div>
+
+            <div className="card" style={{ display: "flex", flexDirection: "column", height: "460px", padding: "0" }}>
+              {/* Message Feed Window */}
+              <div style={{ flex: 1, padding: "1.5rem", overflowY: "auto", display: "flex", flexDirection: "column", gap: "1rem" }}>
+                {chatLog.map((chat, idx) => (
+                  <div key={idx} style={{ display: "flex", justifyContent: chat.r === "user" ? "flex-end" : "flex-start" }}>
+                    <div className={`chat-bubble ${chat.r === "user" ? "user" : "bot"}`}>
+                      {chat.m}
+                    </div>
+                  </div>
+                ))}
+                {isTyping && (
+                  <div style={{ display: "flex", justifyContent: "flex-start" }}>
+                    <div className="chat-bubble bot" style={{ display: "flex", gap: "4px", padding: "0.85rem 1.2rem" }}>
+                      <span className="typing-dot"></span>
+                      <span className="typing-dot"></span>
+                      <span className="typing-dot"></span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Fixed Control Entry Console */}
+              <form onSubmit={handleChatSend} style={{ display: "flex", gap: "0.5rem", padding: "1rem", borderTop: "1.5px solid var(--parchment3)", background: "var(--parchment2)" }}>
+                <input type="text" className="input" placeholder="Ask about specific free courses, plan customization, or scaling frameworks..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} />
+                <button type="submit" className="btn btn-primary">Send</button>
+              </form>
+            </div>
+
+            {/* Micro Badge Milestone Engine Showcase */}
+            <div style={{ marginTop: "3rem" }}>
+              <h2 className="section-title" style={{ fontSize: "1.2rem", marginBottom: "1.25rem" }}>Earned Milestones & Badges:</h2>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "1rem" }}>
+                {REWARD_BADGES.map((b, idx) => {
+                  const isEarned = idx === 0 || completedSkillsCount > idx * 2;
+                  return (
+                    <div key={b.id} className={`badge-card ${isEarned ? "earned" : "locked"}`}>
+                      <span className="badge-icon">{b.icon}</span>
+                      <div className="badge-name">{b.name}</div>
+                      <div className="badge-desc">{b.desc}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Danger Zone Utilities Partition */}
+            <div style={{ marginTop: "4rem", paddingTop: "2rem", borderTop: "1.5px dashed var(--parchment3)", textAlign: "center" }}>
+              <button className="btn btn-ghost" style={{ color: "var(--terra)" }} onClick={resetProgress}>
+                ⚠ Reset Profile Progress Data
+              </button>
+            </div>
+          </div>
+        )}
+
+      </main>
+    </div>
+  );
+}
